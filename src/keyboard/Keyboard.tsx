@@ -5,6 +5,9 @@ import React, {
   useEffect,
   useMemo,
   useState,
+  useImperativeHandle,
+  useRef,
+  forwardRef,
 } from "react";
 
 import { Request } from "@zmkfirmware/zmk-studio-ts-client";
@@ -33,6 +36,22 @@ import { deserializeLayoutZoom, LayoutZoom } from "./PhysicalLayout";
 import { useLocalStorageState } from "../misc/useLocalStorageState";
 
 type BehaviorMap = Record<number, GetBehaviorDetailsResponse>;
+
+export interface KeyboardHandle {
+  getCurrentKeymap: () => Keymap | undefined;
+  importKeymap: (incoming: Keymap) => Promise<void>;
+}
+
+interface KeyboardProps {
+  onKeymapAvailabilityChange?: (available: boolean) => void;
+}
+
+function bindingsEqual(
+  a: BehaviorBinding | undefined,
+  b: BehaviorBinding | undefined
+): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
 
 function useBehaviors(): BehaviorMap {
   let connection = useContext(ConnectionContext);
@@ -158,7 +177,8 @@ function useLayouts(): [
   ];
 }
 
-export default function Keyboard() {
+const Keyboard = forwardRef<KeyboardHandle, KeyboardProps>(
+  ({ onKeymapAvailabilityChange }, ref) => {
   const [
     layouts,
     _setLayouts,
@@ -186,11 +206,17 @@ export default function Keyboard() {
 
   const conn = useContext(ConnectionContext);
   const undoRedo = useContext(UndoRedoContext);
+  const keymapRef = useRef<Keymap | undefined>(keymap);
 
   useEffect(() => {
     setSelectedLayerIndex(0);
     setSelectedKeyPosition(undefined);
   }, [conn]);
+
+  useEffect(() => {
+    keymapRef.current = keymap;
+    onKeymapAvailabilityChange?.(!!keymap);
+  }, [keymap, onKeymapAvailabilityChange]);
 
   useEffect(() => {
     async function performSetRequest() {
@@ -215,6 +241,150 @@ export default function Keyboard() {
 
     performSetRequest();
   }, [selectedPhysicalLayoutIndex]);
+
+  const importKeymap = useCallback(
+    async (incoming: Keymap) => {
+      if (!conn.conn) {
+        throw new Error("Not connected to a device");
+      }
+
+      if (!incoming?.layers || incoming.layers.length === 0) {
+        throw new Error("Keymap file does not contain any layers");
+      }
+
+      let workingKeymap = keymapRef.current;
+
+      if (!workingKeymap) {
+        throw new Error("Current keymap is not loaded");
+      }
+
+      while (workingKeymap.layers.length > incoming.layers.length) {
+        const layerIndex = workingKeymap.layers.length - 1;
+        const resp = await call_rpc(conn.conn, {
+          keymap: { removeLayer: { layerIndex } },
+        });
+        if (!resp.keymap?.removeLayer?.ok) {
+          throw new Error(
+            `Failed to remove layer ${layerIndex}: ${resp.keymap?.removeLayer?.err}`
+          );
+        }
+
+        workingKeymap = produce(workingKeymap, (draft: Keymap) => {
+          draft.layers.splice(layerIndex, 1);
+          draft.availableLayers = (draft.availableLayers || 0) + 1;
+        });
+      }
+
+      while (workingKeymap.layers.length < incoming.layers.length) {
+        const resp = await call_rpc(conn.conn, { keymap: { addLayer: {} } });
+        const added = resp.keymap?.addLayer?.ok?.layer;
+        if (!added) {
+          throw new Error(
+            `Failed to add layer: ${resp.keymap?.addLayer?.err ?? "unknown error"}`
+          );
+        }
+
+        workingKeymap = produce(workingKeymap, (draft: Keymap) => {
+          draft.layers.push(added);
+          draft.availableLayers = (draft.availableLayers || 0) - 1;
+        });
+      }
+
+      for (let layerIndex = 0; layerIndex < incoming.layers.length; layerIndex++) {
+        const targetLayer = incoming.layers[layerIndex];
+        let currentLayer = workingKeymap.layers[layerIndex];
+
+        if (!Array.isArray(targetLayer.bindings)) {
+          throw new Error(`Layer ${layerIndex} in file is missing bindings`);
+        }
+
+        if (currentLayer.bindings.length !== targetLayer.bindings.length) {
+          throw new Error(
+            `Layer ${layerIndex} has a different number of keys (${targetLayer.bindings.length}) than the connected device (${currentLayer.bindings.length}).`
+          );
+        }
+
+        const desiredName = targetLayer.name ?? "";
+        const currentName = currentLayer.name ?? "";
+        if (desiredName !== currentName) {
+          const resp = await call_rpc(conn.conn, {
+            keymap: {
+              setLayerProps: { layerId: currentLayer.id, name: desiredName },
+            },
+          });
+
+          if (
+            resp.keymap?.setLayerProps !==
+            SetLayerPropsResponse.SET_LAYER_PROPS_RESP_OK
+          ) {
+            throw new Error(
+              `Failed to rename layer ${layerIndex}: ${resp.keymap?.setLayerProps}`
+            );
+          }
+
+          workingKeymap = produce(workingKeymap, (draft: Keymap) => {
+            draft.layers[layerIndex].name = desiredName;
+          });
+          currentLayer = workingKeymap.layers[layerIndex];
+        }
+
+        for (
+          let keyIndex = 0;
+          keyIndex < targetLayer.bindings.length;
+          keyIndex++
+        ) {
+          const desiredBinding = targetLayer.bindings[keyIndex];
+          const existingBinding = currentLayer.bindings[keyIndex];
+
+          if (bindingsEqual(desiredBinding, existingBinding)) {
+            continue;
+          }
+
+          const resp = await call_rpc(conn.conn, {
+            keymap: {
+              setLayerBinding: {
+                layerId: currentLayer.id,
+                keyPosition: keyIndex,
+                binding: desiredBinding,
+              },
+            },
+          });
+
+          if (
+            resp.keymap?.setLayerBinding !==
+            SetLayerBindingResponse.SET_LAYER_BINDING_RESP_OK
+          ) {
+            throw new Error(
+              `Failed to update key ${keyIndex} on layer ${layerIndex}: ${resp.keymap?.setLayerBinding}`
+            );
+          }
+
+          workingKeymap = produce(workingKeymap, (draft: Keymap) => {
+            draft.layers[layerIndex].bindings[keyIndex] = desiredBinding;
+          });
+          currentLayer = workingKeymap.layers[layerIndex];
+        }
+      }
+
+      if (incoming.availableLayers !== undefined) {
+        workingKeymap = produce(workingKeymap, (draft: Keymap) => {
+          draft.availableLayers =
+            incoming.availableLayers ?? draft.availableLayers;
+        });
+      }
+
+      keymapRef.current = workingKeymap;
+      setKeymap(workingKeymap);
+      setSelectedLayerIndex((index) =>
+        Math.max(
+          0,
+          Math.min(index, Math.max(0, incoming.layers.length - 1))
+        )
+      );
+      setSelectedKeyPosition(undefined);
+    },
+    [conn, setKeymap, setSelectedLayerIndex, setSelectedKeyPosition]
+  );
 
   let doSelectPhysicalLayout = useCallback(
     (i: number) => {
@@ -500,6 +670,15 @@ export default function Keyboard() {
     }
   }, [keymap, selectedLayerIndex]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      getCurrentKeymap: () => keymapRef.current,
+      importKeymap,
+    }),
+    [importKeymap]
+  );
+
   return (
     <div className="grid grid-cols-[auto_1fr] grid-rows-[1fr_minmax(10em,auto)] bg-base-300 max-w-full min-w-0 min-h-0">
       <div className="p-2 flex flex-col gap-2 bg-base-200 row-span-2">
@@ -574,4 +753,6 @@ export default function Keyboard() {
       )}
     </div>
   );
-}
+});
+
+export default Keyboard;

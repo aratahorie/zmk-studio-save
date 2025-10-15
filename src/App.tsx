@@ -5,7 +5,14 @@ import { call_rpc } from "./rpc/logging";
 
 import type { Notification } from "@zmkfirmware/zmk-studio-ts-client/studio";
 import { ConnectionState, ConnectionContext } from "./rpc/ConnectionContext";
-import { Dispatch, useCallback, useEffect, useState } from "react";
+import {
+  ChangeEvent,
+  Dispatch,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { ConnectModal, TransportFactory } from "./ConnectModal";
 
 import type { RpcTransport } from "@zmkfirmware/zmk-studio-ts-client/transport/index";
@@ -19,7 +26,7 @@ import {
   connect as tauri_serial_connect,
   list_devices as serial_list_devices,
 } from "./tauri/serial";
-import Keyboard from "./keyboard/Keyboard";
+import Keyboard, { KeyboardHandle } from "./keyboard/Keyboard";
 import { UndoRedoContext, useUndoRedo } from "./undoRedo";
 import { usePub, useSub } from "./usePubSub";
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
@@ -169,6 +176,9 @@ function App() {
   const [showAbout, setShowAbout] = useState(false);
   const [showLicenseNotice, setShowLicenseNotice] = useState(false);
   const [connectionAbort, setConnectionAbort] = useState(new AbortController());
+  const [keymapAvailable, setKeymapAvailable] = useState(false);
+  const keyboardRef = useRef<KeyboardHandle>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [lockState, setLockState] = useState<LockState>(
     LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED
@@ -280,6 +290,66 @@ function App() {
     [setConn, setConnectedDeviceName, setConnectedDeviceName]
   );
 
+  const exportKeymapToFile = useCallback(() => {
+    const current = keyboardRef.current?.getCurrentKeymap();
+    if (!current) {
+      window.alert("No keymap loaded to save.");
+      return;
+    }
+    const timestamp = new Date()
+      .toISOString()
+      .replaceAll(":", "-")
+      .replaceAll(".", "-");
+    const normalizedName =
+      connectedDeviceName?.replace(/\s+/g, "-").toLowerCase() || "keymap";
+    const blob = new Blob([JSON.stringify(current, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${normalizedName}-${timestamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [connectedDeviceName]);
+
+  const handleFileSelection = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        return;
+      }
+
+      try {
+        const content = await file.text();
+        const parsed = JSON.parse(content);
+        await keyboardRef.current?.importKeymap(parsed);
+        reset();
+      } catch (error) {
+        console.error("Failed to load keymap", error);
+        window.alert(
+          error instanceof Error
+            ? `Failed to load keymap: ${error.message}`
+            : "Failed to load keymap."
+        );
+      } finally {
+        event.target.value = "";
+      }
+    },
+    [reset]
+  );
+
+  const triggerImport = useCallback(() => {
+    if (!conn.conn) {
+      window.alert("Connect to a device before loading a keymap.");
+      return;
+    }
+
+    fileInputRef.current?.click();
+  }, [conn]);
+
   return (
     <ConnectionContext.Provider value={conn}>
       <LockStateContext.Provider value={lockState}>
@@ -306,13 +376,27 @@ function App() {
               onDiscard={discard}
               onDisconnect={disconnect}
               onResetSettings={resetSettings}
+              onExportKeymap={exportKeymapToFile}
+              onImportKeymap={triggerImport}
+              canExportKeymap={keymapAvailable}
+              canImportKeymap={!!conn.conn}
             />
-            <Keyboard />
+            <Keyboard
+              ref={keyboardRef}
+              onKeymapAvailabilityChange={setKeymapAvailable}
+            />
             <AppFooter
               onShowAbout={() => setShowAbout(true)}
               onShowLicenseNotice={() => setShowLicenseNotice(true)}
             />
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={handleFileSelection}
+          />
         </UndoRedoContext.Provider>
       </LockStateContext.Provider>
     </ConnectionContext.Provider>

@@ -12,7 +12,15 @@ import { useModalRef } from "./misc/useModalRef";
 import { LockStateContext } from "./rpc/LockStateContext";
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
 import { ConnectionContext } from "./rpc/ConnectionContext";
-import { ChevronDown, Undo2, Redo2, Save, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  Undo2,
+  Redo2,
+  Save,
+  Trash2,
+  Download,
+  Upload,
+} from "lucide-react";
 import { Tooltip } from "./misc/Tooltip";
 import { GenericModal } from "./GenericModal";
 
@@ -24,8 +32,12 @@ export interface AppHeaderProps {
   onRedo?: () => Promise<void>;
   onResetSettings?: () => void | Promise<void>;
   onDisconnect?: () => void | Promise<void>;
+  onExportKeymap?: () => void | Promise<void>;
+  onImportKeymap?: () => void | Promise<void>;
   canUndo?: boolean;
   canRedo?: boolean;
+  canExportKeymap?: boolean;
+  canImportKeymap?: boolean;
 }
 
 export const AppHeader = ({
@@ -38,6 +50,10 @@ export const AppHeader = ({
   onDiscard,
   onDisconnect,
   onResetSettings,
+  onExportKeymap,
+  onImportKeymap,
+  canExportKeymap,
+  canImportKeymap,
 }: AppHeaderProps) => {
   const [showSettingsReset, setShowSettingsReset] = useState(false);
 
@@ -146,6 +162,24 @@ export const AppHeader = ({
             </Button>
           </Tooltip>
         )}
+        <Tooltip label="Load from file">
+          <Button
+            className="flex items-center justify-center p-1.5 rounded enabled:hover:bg-base-300 disabled:opacity-50"
+            isDisabled={!canImportKeymap}
+            onPress={onImportKeymap}
+          >
+            <Upload className="inline-block w-4 mx-1" aria-label="Load" />
+          </Button>
+        </Tooltip>
+        <Tooltip label="Save to file">
+          <Button
+            className="flex items-center justify-center p-1.5 rounded enabled:hover:bg-base-300 disabled:opacity-50"
+            isDisabled={!canExportKeymap}
+            onPress={onExportKeymap}
+          >
+            <Download className="inline-block w-4 mx-1" aria-label="Save to file" />
+          </Button>
+        </Tooltip>
         <Tooltip label="Save">
           <Button
             className="flex items-center justify-center p-1.5 rounded enabled:hover:bg-base-300 disabled:opacity-50"
