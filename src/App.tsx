@@ -296,10 +296,7 @@ function App() {
       window.alert("No keymap loaded to save.");
       return;
     }
-    const timestamp = new Date()
-      .toISOString()
-      .replaceAll(":", "-")
-      .replaceAll(".", "-");
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const normalizedName =
       connectedDeviceName?.replace(/\s+/g, "-").toLowerCase() || "keymap";
     const blob = new Blob([JSON.stringify(current, null, 2)], {
