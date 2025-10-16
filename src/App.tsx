@@ -10,6 +10,7 @@ import {
   Dispatch,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -36,6 +37,21 @@ import { valueAfter } from "./misc/async";
 import { AppFooter } from "./AppFooter";
 import { AboutModal } from "./AboutModal";
 import { LicenseNoticeModal } from "./misc/LicenseNoticeModal";
+import {
+  ComboConfig,
+  PointingConfig,
+  StudioSaveFile,
+  createDefaultPointingConfig,
+  isStudioSaveFile,
+} from "./saveFormat";
+
+const clonePointingConfig = (config: PointingConfig): PointingConfig =>
+  JSON.parse(JSON.stringify(config));
+
+const pointingConfigsEqual = (
+  a: PointingConfig,
+  b: PointingConfig
+): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 declare global {
   interface Window {
@@ -179,6 +195,19 @@ function App() {
   const [keymapAvailable, setKeymapAvailable] = useState(false);
   const keyboardRef = useRef<KeyboardHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [combos, setCombos] = useState<ComboConfig[]>([]);
+  const [pointingConfig, setPointingConfig] = useState<PointingConfig>(() =>
+    createDefaultPointingConfig()
+  );
+  const [pointingBaseline, setPointingBaseline] = useState<PointingConfig>(() =>
+    createDefaultPointingConfig()
+  );
+  const [pointingUnsupportedNotified, setPointingUnsupportedNotified] =
+    useState(false);
+  const hasPointingChanges = useMemo(
+    () => !pointingConfigsEqual(pointingConfig, pointingBaseline),
+    [pointingConfig, pointingBaseline]
+  );
 
   const [lockState, setLockState] = useState<LockState>(
     LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED
@@ -189,11 +218,6 @@ function App() {
   });
 
   useEffect(() => {
-    if (!conn) {
-      reset();
-      setLockState(LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED);
-    }
-
     async function updateLockState() {
       if (!conn.conn) {
         return;
@@ -212,20 +236,115 @@ function App() {
     updateLockState();
   }, [conn, setLockState]);
 
-  const save = useCallback(() => {
-    async function doSave() {
-      if (!conn.conn) {
-        return;
-      }
+  useEffect(() => {
+    if (!conn.conn) {
+      reset();
+      setLockState(LockState.ZMK_STUDIO_CORE_LOCK_STATE_LOCKED);
+    }
+    setPointingUnsupportedNotified(false);
+  }, [conn.conn, reset, setLockState]);
 
-      let resp = await call_rpc(conn.conn, { keymap: { saveChanges: true } });
-      if (!resp.keymap?.saveChanges || resp.keymap?.saveChanges.err) {
-        console.error("Failed to save changes", resp.keymap?.saveChanges);
+  const sendPointingSensitivity = useCallback(async (): Promise<
+    "success" | "unsupported" | "failed"
+  > => {
+    if (!conn.conn) {
+      return "failed";
+    }
+
+    const payload = {
+      pointing: {
+        setSensitivity: {
+          cursor: {
+            numerator: pointingConfig.cursor.scale[0],
+            denominator: pointingConfig.cursor.scale[1],
+          },
+          scroll: pointingConfig.scroll
+            ? {
+                numerator: pointingConfig.scroll.scale[0],
+                denominator: pointingConfig.scroll.scale[1],
+              }
+            : undefined,
+          cpi:
+            pointingConfig.cursor.cpi === null ||
+            pointingConfig.cursor.cpi === undefined
+              ? undefined
+              : pointingConfig.cursor.cpi,
+        },
+      },
+    };
+
+    try {
+      const resp = await call_rpc(conn.conn, payload as any);
+      const result = (resp as any)?.pointing?.setSensitivity;
+      if (result?.err !== undefined && result?.err !== null) {
+        const errValue = result.err;
+        if (
+          errValue === 1 ||
+          errValue === "SET_SENSITIVITY_ERR_UNSUPPORTED" ||
+          errValue === "unsupported"
+        ) {
+          return "unsupported";
+        }
+        console.error("Failed to apply trackball sensitivity", result);
+        return "failed";
+      }
+      return "success";
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message.toLowerCase() : String(error);
+      if (
+        message.includes("pointing") ||
+        message.includes("unrecognized") ||
+        message.includes("unknown") ||
+        message.includes("unsupported")
+      ) {
+        console.warn(
+          "Connected firmware does not support trackball sensitivity RPC",
+          error
+        );
+        return "unsupported";
+      }
+      console.error("Failed to send trackball sensitivity update", error);
+      return "failed";
+    }
+  }, [conn, pointingConfig]);
+
+  const save = useCallback(async () => {
+    let sensitivityStatus: "success" | "unsupported" | "failed" = "success";
+    if (hasPointingChanges) {
+      sensitivityStatus = await sendPointingSensitivity();
+      if (sensitivityStatus === "failed") {
+        window.alert(
+          "Failed to apply trackball sensitivity settings. Keymap changes were still sent, but sensitivity values were not updated."
+        );
+      } else if (sensitivityStatus === "unsupported") {
+        if (!pointingUnsupportedNotified) {
+          window.alert(
+            "Connected firmware does not support trackball sensitivity updates yet. Update the firmware to apply these values."
+          );
+          setPointingUnsupportedNotified(true);
+        }
+      }
+      if (sensitivityStatus === "success" || sensitivityStatus === "unsupported") {
+        setPointingBaseline(clonePointingConfig(pointingConfig));
       }
     }
 
-    doSave();
-  }, [conn]);
+    if (!conn.conn) {
+      return;
+    }
+
+    const resp = await call_rpc(conn.conn, { keymap: { saveChanges: true } });
+    if (!resp.keymap?.saveChanges || resp.keymap?.saveChanges.err) {
+      console.error("Failed to save changes", resp.keymap?.saveChanges);
+    }
+  }, [
+    conn,
+    hasPointingChanges,
+    pointingConfig,
+    pointingUnsupportedNotified,
+    sendPointingSensitivity,
+  ]);
 
   const discard = useCallback(() => {
     async function doDiscard() {
@@ -241,11 +360,12 @@ function App() {
       }
 
       reset();
+      setPointingConfig(clonePointingConfig(pointingBaseline));
       setConn({ conn: conn.conn });
     }
 
     doDiscard();
-  }, [conn]);
+  }, [conn, pointingBaseline]);
 
   const resetSettings = useCallback(() => {
     async function doReset() {
@@ -296,10 +416,15 @@ function App() {
       window.alert("No keymap loaded to save.");
       return;
     }
+    const payload: StudioSaveFile = {
+      keymap: current,
+      combos,
+      pointing: pointingConfig,
+    };
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const normalizedName =
       connectedDeviceName?.replace(/\s+/g, "-").toLowerCase() || "keymap";
-    const blob = new Blob([JSON.stringify(current, null, 2)], {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
@@ -310,7 +435,7 @@ function App() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [connectedDeviceName]);
+  }, [connectedDeviceName, combos, pointingConfig]);
 
   const handleFileSelection = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -322,7 +447,26 @@ function App() {
       try {
         const content = await file.text();
         const parsed = JSON.parse(content);
-        await keyboardRef.current?.importKeymap(parsed);
+        const saveFile = isStudioSaveFile(parsed) ? parsed : undefined;
+        const keymapToLoad = saveFile ? saveFile.keymap : parsed;
+        await keyboardRef.current?.importKeymap(keymapToLoad);
+        if (saveFile) {
+          setCombos(saveFile.combos ?? []);
+          if (saveFile.pointing) {
+            const cloned = clonePointingConfig(saveFile.pointing);
+            setPointingConfig(cloned);
+            setPointingBaseline(cloned);
+          } else {
+            const defaults = createDefaultPointingConfig();
+            setPointingConfig(defaults);
+            setPointingBaseline(clonePointingConfig(defaults));
+          }
+        } else {
+          setCombos([]);
+          const defaults = createDefaultPointingConfig();
+          setPointingConfig(defaults);
+          setPointingBaseline(clonePointingConfig(defaults));
+        }
         reset();
       } catch (error) {
         console.error("Failed to load keymap", error);
@@ -377,10 +521,13 @@ function App() {
               onImportKeymap={triggerImport}
               canExportKeymap={keymapAvailable}
               canImportKeymap={!!conn.conn}
+              hasLocalChanges={hasPointingChanges}
             />
             <Keyboard
               ref={keyboardRef}
               onKeymapAvailabilityChange={setKeymapAvailable}
+              pointingConfig={pointingConfig}
+              onPointingConfigChange={setPointingConfig}
             />
             <AppFooter
               onShowAbout={() => setShowAbout(true)}

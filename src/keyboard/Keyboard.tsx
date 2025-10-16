@@ -34,6 +34,8 @@ import { LockStateContext } from "../rpc/LockStateContext";
 import { LockState } from "@zmkfirmware/zmk-studio-ts-client/core";
 import { deserializeLayoutZoom, LayoutZoom } from "./PhysicalLayout";
 import { useLocalStorageState } from "../misc/useLocalStorageState";
+import { PointingConfig } from "../saveFormat";
+import PointingPanel from "../pointing/PointingPanel";
 
 type BehaviorMap = Record<number, GetBehaviorDetailsResponse>;
 
@@ -44,6 +46,8 @@ export interface KeyboardHandle {
 
 interface KeyboardProps {
   onKeymapAvailabilityChange?: (available: boolean) => void;
+  pointingConfig: PointingConfig;
+  onPointingConfigChange: (config: PointingConfig) => void;
 }
 
 function bindingsEqual(
@@ -178,7 +182,7 @@ function useLayouts(): [
 }
 
 const Keyboard = forwardRef<KeyboardHandle, KeyboardProps>(
-  ({ onKeymapAvailabilityChange }, ref) => {
+  ({ onKeymapAvailabilityChange, pointingConfig, onPointingConfigChange }, ref) => {
   const [
     layouts,
     _setLayouts,
@@ -738,19 +742,25 @@ const Keyboard = forwardRef<KeyboardHandle, KeyboardProps>(
           </select>
         </div>
       )}
-      {keymap && selectedBinding && (
-        <div className="p-2 col-start-2 row-start-2 bg-base-200">
-          <BehaviorBindingPicker
-            binding={selectedBinding}
-            behaviors={Object.values(behaviors)}
-            layers={keymap.layers.map(({ id, name }, li) => ({
-              id,
-              name: name || li.toLocaleString(),
-            }))}
-            onBindingChanged={doUpdateBinding}
-          />
-        </div>
-      )}
+      <div className="p-2 col-start-2 row-start-2 bg-base-200 overflow-y-auto flex flex-col gap-4">
+        {keymap && selectedBinding && (
+          <div>
+            <BehaviorBindingPicker
+              binding={selectedBinding}
+              behaviors={Object.values(behaviors)}
+              layers={keymap.layers.map(({ id, name }, li) => ({
+                id,
+                name: name || li.toLocaleString(),
+              }))}
+              onBindingChanged={doUpdateBinding}
+            />
+          </div>
+        )}
+        <PointingPanel
+          config={pointingConfig}
+          onChange={onPointingConfigChange}
+        />
+      </div>
     </div>
   );
 });

@@ -38,6 +38,7 @@ export interface AppHeaderProps {
   canRedo?: boolean;
   canExportKeymap?: boolean;
   canImportKeymap?: boolean;
+  hasLocalChanges?: boolean;
 }
 
 const logoUrl = `${import.meta.env.BASE_URL}zmk.svg`;
@@ -56,6 +57,7 @@ export const AppHeader = ({
   onImportKeymap,
   canExportKeymap,
   canImportKeymap,
+  hasLocalChanges,
 }: AppHeaderProps) => {
   const [showSettingsReset, setShowSettingsReset] = useState(false);
 
@@ -81,6 +83,8 @@ export const AppHeader = ({
   useSub("rpc_notification.keymap.unsavedChangesStatusChanged", (unsaved) =>
     setUnsaved(unsaved)
   );
+
+  const dirty = Boolean(unsaved || hasLocalChanges);
 
   return (
     <header className="top-0 left-0 right-0 grid grid-cols-[1fr_auto_1fr] items-center justify-between h-10 max-w-full">
@@ -185,7 +189,7 @@ export const AppHeader = ({
         <Tooltip label="Save">
           <Button
             className="flex items-center justify-center p-1.5 rounded enabled:hover:bg-base-300 disabled:opacity-50"
-            isDisabled={!unsaved}
+            isDisabled={!dirty}
             onPress={onSave}
           >
             <Save className="inline-block w-4 mx-1" aria-label="Save" />
@@ -195,7 +199,7 @@ export const AppHeader = ({
           <Button
             className="flex items-center justify-center p-1.5 rounded enabled:hover:bg-base-300 disabled:opacity-50"
             onPress={onDiscard}
-            isDisabled={!unsaved}
+            isDisabled={!dirty}
           >
             <Trash2 className="inline-block w-4 mx-1" aria-label="Discard" />
           </Button>
