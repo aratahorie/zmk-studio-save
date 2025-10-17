@@ -284,7 +284,7 @@ export const ConnectModal = ({
 
   return (
     <GenericModal ref={dialog} className="max-w-xl">
-      <h1 className="text-xl">Welcome to ZMK Studio</h1>
+      <h1 className="text-xl">Welcome to ZMK Studio Export/Load Edition</h1>
       {haveTransports
         ? connectOptions(transports, onTransportCreated, open)
         : noTransportsOptionsPrompt()}
