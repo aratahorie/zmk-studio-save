@@ -86,7 +86,7 @@ export const AppHeader = ({
     <header className="top-0 left-0 right-0 grid grid-cols-[1fr_auto_1fr] items-center justify-between h-10 max-w-full">
       <div className="flex px-3 items-center gap-1">
         <img src={logoUrl} alt="ZMK Logo" className="h-8 rounded" />
-        <p>Studio</p>
+        <p>Studio Export/Load Edition</p>
       </div>
       <GenericModal ref={showSettingsRef} className="max-w-[50vw]">
         <h2 className="my-2 text-lg">Restore Stock Settings</h2>
@@ -173,13 +173,13 @@ export const AppHeader = ({
             <Upload className="inline-block w-4 mx-1" aria-label="Load" />
           </Button>
         </Tooltip>
-        <Tooltip label="Save to file">
+        <Tooltip label="Export to file">
           <Button
             className="flex items-center justify-center p-1.5 rounded enabled:hover:bg-base-300 disabled:opacity-50"
             isDisabled={!canExportKeymap}
             onPress={onExportKeymap}
           >
-            <Download className="inline-block w-4 mx-1" aria-label="Save to file" />
+            <Download className="inline-block w-4 mx-1" aria-label="Export to file" />
           </Button>
         </Tooltip>
         <Tooltip label="Save">
