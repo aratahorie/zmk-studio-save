@@ -76,19 +76,39 @@ export const BehaviorBindingPicker = ({
       return;
     }
 
-    if (
-      validateBinding(
-        metadata,
-        layers.map(({ id }) => id),
-        param1,
-        param2
-      )
-    ) {
+    const isValid = validateBinding(
+      metadata,
+      layers.map(({ id }) => id),
+      param1,
+      param2
+    );
+
+    if (isValid) {
       onBindingChanged({
         behaviorId,
         param1: param1 || 0,
         param2: param2 || 0,
       });
+    } else {
+      console.warn(
+        "Binding validation failed for behavior:",
+        behaviors.find((b) => b.id === behaviorId)?.displayName,
+        "param1:",
+        param1,
+        "param2:",
+        param2,
+        "metadata:",
+        metadata,
+        "metadata details:",
+        JSON.stringify(metadata, null, 2)
+      );
+
+      // For Mouse Key Press and similar behaviors, try setting default param1 value
+      const behaviorName = behaviors.find((b) => b.id === behaviorId)?.displayName;
+      if (behaviorName === "Mouse Key Press" && param1 === 0) {
+        console.log("Setting default param1=1 for Mouse Key Press");
+        setParam1(1);
+      }
     }
   }, [behaviorId, param1, param2]);
 
@@ -106,9 +126,23 @@ export const BehaviorBindingPicker = ({
           value={behaviorId}
           className="h-8 rounded"
           onChange={(e) => {
-            setBehaviorId(parseInt(e.target.value));
-            setParam1(0);
-            setParam2(0);
+            const newBehaviorId = parseInt(e.target.value);
+            const newBehavior = behaviors.find((b) => b.id === newBehaviorId);
+            setBehaviorId(newBehaviorId);
+
+            // Set default values for specific behaviors
+            if (newBehavior?.displayName === "Mouse Key Press" ||
+                newBehavior?.displayName === "Mouse Button") {
+              setParam1(1); // Default to button 1 (left click)
+              setParam2(0);
+            } else if (newBehavior?.displayName === "Layer Tap" ||
+                       newBehavior?.displayName === "Layer-Tap") {
+              setParam1(1); // Default to layer 1
+              setParam2(0x2C); // Default to Space key (HID usage 0x2C)
+            } else {
+              setParam1(0);
+              setParam2(0);
+            }
           }}
         >
           {sortedBehaviors.map((b) => (

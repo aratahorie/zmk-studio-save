@@ -21,7 +21,7 @@ export const HidUsageLabel = ({ hid_usage }: HidUsageLabelProps) => {
 
   return (
     <span
-      className="@[10em]:before:content-[attr(data-long-content)] @[6em]:before:content-[attr(data-med-content)] before:content-[attr(aria-label)]"
+      className="@[5em]:before:content-[attr(data-long-content)] @[3em]:before:content-[attr(data-med-content)] before:content-[attr(aria-label)] text-xs"
       aria-label={remove_prefix(labels.short)}
       data-med-content={remove_prefix(labels.med || labels.short)}
       data-long-content={remove_prefix(
