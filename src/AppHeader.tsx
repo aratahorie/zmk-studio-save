@@ -20,9 +20,12 @@ import {
   Trash2,
   Download,
   Upload,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Tooltip } from "./misc/Tooltip";
 import { GenericModal } from "./GenericModal";
+import { useTheme } from "./misc/useTheme";
 
 export interface AppHeaderProps {
   connectedDeviceLabel?: string;
@@ -81,6 +84,8 @@ export const AppHeader = ({
   useSub("rpc_notification.keymap.unsavedChangesStatusChanged", (unsaved) =>
     setUnsaved(unsaved)
   );
+
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="top-0 left-0 right-0 grid grid-cols-[1fr_auto_1fr] items-center justify-between h-10 max-w-full">
@@ -141,6 +146,18 @@ export const AppHeader = ({
         </Popover>
       </MenuTrigger>
       <div className="flex justify-end gap-1 px-2">
+        <Tooltip label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}>
+          <Button
+            className="flex items-center justify-center p-1.5 rounded hover:bg-base-300"
+            onPress={toggleTheme}
+          >
+            {theme === "light" ? (
+              <Moon className="inline-block w-4 mx-1" aria-label="Dark mode" />
+            ) : (
+              <Sun className="inline-block w-4 mx-1" aria-label="Light mode" />
+            )}
+          </Button>
+        </Tooltip>
         {onUndo && (
           <Tooltip label="Undo">
             <Button

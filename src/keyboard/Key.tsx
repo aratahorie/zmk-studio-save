@@ -24,6 +24,10 @@ interface KeyProps {
    * Optional click handler
    */
   onClick?: () => void;
+  /**
+   * Highlight this key with special color
+   */
+  highlight?: boolean;
 }
 
 interface KeyDimension {
@@ -49,6 +53,7 @@ export const Key = ({
   header,
   oneU,
   hoverZoom = true,
+  highlight = false,
   ...props
 }: PropsWithChildren<KeyProps>) => {
   const size = makeSize(props, oneU);
@@ -62,6 +67,13 @@ export const Key = ({
     </div>
   ));
 
+  // Determine background color based on state (selected takes priority)
+  const bgClasses = selected
+    ? "bg-primary text-primary-content"
+    : highlight
+    ? "bg-orange-400 dark:bg-orange-600/70 text-white dark:text-orange-50"
+    : "bg-base-100 text-base-content";
+
   return (
     <div
       className="group inline-flex b-0 justify-content-center items-center transition-all duration-100 data-[zoomer=true]:hover:translate-y-[calc(-1em-7px)] data-[zoomer=true]:hover:translate-x-[calc(-1em)]"
@@ -74,7 +86,7 @@ export const Key = ({
         data-zoomer={hoverZoom}
         className={`rounded${
           oneU > 20 ? "-md" : ""
-        } transition-all duration-100 m-auto p-0 b-0 box-border grid grid-rows-[0_var(--zmk-key-center-height)_0] grid-cols-[0_var(--zmk-key-center-width)_0] data-[zoomer=true]:hover:grid-rows-[1em_var(--zmk-key-center-height)_1em] data-[zoomer=true]:hover:grid-cols-[1em_var(--zmk-key-center-width)_1em] shadow-[0_0_0_1px_inset] shadow-base-content data-[zoomer=true]:shadow-base-200 data-[zoomer=true]:hover:shadow-base-content data-[zoomer=true]:hover:z-50 text-base-content bg-base-100 aria-selected:bg-primary aria-selected:text-primary-content grow @container relative`}
+        } transition-all duration-100 m-auto p-0 b-0 box-border grid grid-rows-[0_var(--zmk-key-center-height)_0] grid-cols-[0_var(--zmk-key-center-width)_0] data-[zoomer=true]:hover:grid-rows-[1em_var(--zmk-key-center-height)_1em] data-[zoomer=true]:hover:grid-cols-[1em_var(--zmk-key-center-width)_1em] shadow-[0_0_0_1px_inset] shadow-base-content data-[zoomer=true]:shadow-base-200 data-[zoomer=true]:hover:shadow-base-content data-[zoomer=true]:hover:z-50 ${bgClasses} grow @container relative`}
       >
         {header && (
           <span className="absolute top-0.5 left-1 right-1 text-[0.6rem] leading-none text-nowrap truncate opacity-90 pointer-events-none z-10 font-semibold">

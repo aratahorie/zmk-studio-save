@@ -170,6 +170,7 @@ export const Keymap = ({
           r: (k.r || 0) / 100.0,
           rx: (k.rx || 0) / 100.0,
           ry: (k.ry || 0) / 100.0,
+          highlight: true,
           children: <HidUsageLabel hid_usage={keyParam} />,
         };
       }
