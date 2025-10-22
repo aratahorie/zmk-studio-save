@@ -258,6 +258,21 @@ const Keyboard = forwardRef<KeyboardHandle, KeyboardProps>(
         throw new Error("Current keymap is not loaded");
       }
 
+      console.log("Import keymap debug info:", {
+        currentLayers: workingKeymap.layers.length,
+        incomingLayers: incoming.layers.length,
+        availableLayers: workingKeymap.availableLayers,
+      });
+
+      // Check if we need to add layers and if we have enough available
+      const layersToAdd = incoming.layers.length - workingKeymap.layers.length;
+      if (layersToAdd > 0 && (workingKeymap.availableLayers || 0) < layersToAdd) {
+        throw new Error(
+          `Cannot import keymap: File contains ${incoming.layers.length} layers, but the device only supports ${workingKeymap.layers.length} layers maximum. ` +
+          `Please use a keymap file with ${workingKeymap.layers.length} or fewer layers.`
+        );
+      }
+
       while (workingKeymap.layers.length > incoming.layers.length) {
         const layerIndex = workingKeymap.layers.length - 1;
         const resp = await call_rpc(conn.conn, {
@@ -276,11 +291,17 @@ const Keyboard = forwardRef<KeyboardHandle, KeyboardProps>(
       }
 
       while (workingKeymap.layers.length < incoming.layers.length) {
+        console.log("Attempting to add layer:", {
+          currentLayers: workingKeymap.layers.length,
+          targetLayers: incoming.layers.length,
+          availableLayers: workingKeymap.availableLayers,
+        });
         const resp = await call_rpc(conn.conn, { keymap: { addLayer: {} } });
+        console.log("addLayer response:", resp.keymap?.addLayer);
         const added = resp.keymap?.addLayer?.ok?.layer;
         if (!added) {
           throw new Error(
-            `Failed to add layer: ${resp.keymap?.addLayer?.err ?? "unknown error"}`
+            `Failed to add layer: ${resp.keymap?.addLayer?.err ?? "unknown error"} (available layers: ${workingKeymap.availableLayers})`
           );
         }
 

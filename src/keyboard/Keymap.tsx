@@ -40,6 +40,18 @@ const mouseButtonNames: Record<number, string> = {
   5: "Forward",
 };
 
+// Modifier key short names for Mod-Tap display
+const modifierShortNames: Record<string, string> = {
+  "LeftControl": "Ctrl",
+  "RightControl": "Ctrl",
+  "LeftShift": "Shift",
+  "RightShift": "Shift",
+  "LeftAlt": "Alt",
+  "RightAlt": "Alt",
+  "LeftGUI": "GUI",
+  "RightGUI": "GUI",
+};
+
 function getMouseButtonLabel(buttonNumber: number): {
   short: string;
   med: string;
@@ -47,18 +59,18 @@ function getMouseButtonLabel(buttonNumber: number): {
 } {
   const name = mouseButtonNames[buttonNumber] || `Button ${buttonNumber}`;
   const shortMap: Record<string, string> = {
-    "Left Click": "L",
-    "Right Click": "R",
-    "Middle Click": "M",
-    Back: "Bk",
-    Forward: "Fw",
+    "Left Click": "LFT",
+    "Right Click": "RGT",
+    "Middle Click": "MID",
+    Back: "BCK",
+    Forward: "FWD",
   };
   const medMap: Record<string, string> = {
-    "Left Click": "LClk",
-    "Right Click": "RClk",
-    "Middle Click": "MClk",
-    Back: "Back",
-    Forward: "Fwd",
+    "Left Click": "LFT",
+    "Right Click": "RGT",
+    "Middle Click": "MID",
+    Back: "BACK",
+    Forward: "FWD",
   };
   return {
     short: shortMap[name] || name,
@@ -233,6 +245,42 @@ export const Keymap = ({
           />
         ),
       };
+    }
+
+    // Special handling for Mod-Tap: show modifier as header, key in center
+    if (displayName === "Mod-Tap") {
+      // param1 is the modifier, param2 is the key
+      const modifierParam = binding.param1;
+      const keyParam = binding.param2;
+
+      // Check if param2 is a valid HID usage (the key)
+      let hasValidKey = false;
+      if (keyParam && keyParam !== 0) {
+        const [page, id] = hid_usage_page_and_id_from_usage(keyParam);
+        const labels = hid_usage_get_labels(page & 0xff, id);
+        hasValidKey = !!labels.short;
+      }
+
+      if (hasValidKey && modifierParam && modifierParam !== 0) {
+        // Get modifier label
+        const [modPage, modId] = hid_usage_page_and_id_from_usage(modifierParam);
+        const modLabels = hid_usage_get_labels(modPage & 0xff, modId);
+        const modName = modLabels.short?.replace(/^Keyboard /, "") || "Mod";
+        const modLabel = modifierShortNames[modName] || modName;
+
+        return {
+          id: `${keymap.layers[selectedLayerIndex].id}-${i}`,
+          header: modLabel,
+          x: k.x / 100.0,
+          y: k.y / 100.0,
+          width: k.width / 100,
+          height: k.height / 100.0,
+          r: (k.r || 0) / 100.0,
+          rx: (k.rx || 0) / 100.0,
+          ry: (k.ry || 0) / 100.0,
+          children: <HidUsageLabel hid_usage={keyParam} />,
+        };
+      }
     }
 
     // Special handling for To Layer: show "To" as header, layer number in center
