@@ -23,9 +23,9 @@ export const LicenseNoticeModal = ({
       <div>
         <div className="flex justify-between items-start">
           <p className="mr-2">
-            ZMK Studio is released under the open source Apache 2.0 license. A
-            copy of the NOTICE file from the ZMK Studio repository is included
-            here:
+            conductor studio is released under the open source Apache 2.0
+            license. As a fork of ZMK Studio, a copy of the NOTICE file from
+            the original repository is included here:
           </p>
           <button
             className="p-1.5 rounded-md bg-gray-100 text-black hover:bg-gray-300"

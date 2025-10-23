@@ -1,3 +1,3 @@
-# ZMK Studio
+# conductor studio
 
-Initial work on the ZMK Studio UI.
+Fork of [ZMK Studio](https://github.com/zmkfirmware/zmk-studio) with load/export workflow enhancements.

@@ -35,8 +35,8 @@ export const UnlockModal = ({}: UnlockModalProps) => {
     <GenericModal ref={dialog}>
       <h1 className="text-xl">Unlock To Continue</h1>
       <p>
-        For security reasons, your keyboard requires unlocking before using ZMK
-        Studio.
+        For security reasons, your keyboard requires unlocking before using
+        conductor studio.
       </p>
       <p>
         If studio unlocking hasn't been added to your keymap or a combo, see the{" "}

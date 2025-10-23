@@ -6,8 +6,8 @@
     "devUrl": "http://localhost:5173",
     "frontendDist": "../dist/"
   },
-  "productName": "ZMK Studio",
-  "mainBinaryName": "zmk-studio",
+  "productName": "conductor studio",
+  "mainBinaryName": "conductor-studio",
   "version": "0.3.1",
   "identifier": "dev.zmk.studio",
   "bundle": {
@@ -69,7 +69,7 @@
         "fullscreen": false,
         "height": 600,
         "resizable": true,
-        "title": "ZMK Studio",
+        "title": "conductor studio",
         "width": 800
       }
     ]

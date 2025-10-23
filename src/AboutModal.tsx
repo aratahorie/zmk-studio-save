@@ -201,9 +201,9 @@ export const AboutModal = ({ open, onClose }: AboutModalProps) => {
       </div>
       <div>
         <p className="py-1 mr-2">
-          ZMK Studio is made possible thanks to the generous donation of time
-          from our contributors, as well as the financial sponsorship from the
-          following vendors:
+          ZMK Studio is made possible thanks to
+          the generous donation of time from our contributors, as well as the
+          financial sponsorship from the following vendors:
         </p>
       </div>
       <div className="grid gap-2 auto-rows-auto grid-cols-[auto_minmax(min-content,1fr)] justify-items-center items-center">

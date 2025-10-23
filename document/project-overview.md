@@ -1,4 +1,6 @@
-# ZMK Studio プロジェクト概要
+# conductor studio プロジェクト概要
+
+> ZMK Studio から派生したフォークです。
 
 ## プロジェクトの目的
 - ZMK Firmware デバイスと接続し、キーマップやレイアウトを GUI で操作できるクロスプラットフォームアプリケーション。

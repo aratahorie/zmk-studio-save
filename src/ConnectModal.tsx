@@ -227,7 +227,7 @@ function noTransportsOptionsPrompt() {
   return (
     <div className="m-4 flex flex-col gap-2">
       <p>
-        Your browser is not supported. ZMK Studio uses either{" "}
+        Your browser is not supported. conductor studio uses either{" "}
         <ExternalLink href="https://caniuse.com/web-serial">
           Web Serial
         </ExternalLink>{" "}
@@ -239,7 +239,7 @@ function noTransportsOptionsPrompt() {
       </p>
 
       <div>
-        <p>To use ZMK Studio, either:</p>
+        <p>To use conductor studio, either:</p>
         <ul className="list-disc list-inside">
           <li>
             Use a browser that supports the above web technologies, e.g.
@@ -284,7 +284,7 @@ export const ConnectModal = ({
 
   return (
     <GenericModal ref={dialog} className="max-w-xl">
-      <h1 className="text-xl">Welcome to ZMK Studio Export/Load Edition</h1>
+      <h1 className="text-xl">Welcome to conductor studio</h1>
       {haveTransports
         ? connectOptions(transports, onTransportCreated, open)
         : noTransportsOptionsPrompt()}

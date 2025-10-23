@@ -90,15 +90,15 @@ export const AppHeader = ({
   return (
     <header className="top-0 left-0 right-0 grid grid-cols-[1fr_auto_1fr] items-center justify-between h-10 max-w-full">
       <div className="flex px-3 items-center gap-1">
-        <img src={logoUrl} alt="ZMK Logo" className="h-8 rounded" />
-        <p>Studio Export/Load Edition</p>
+        <img src={logoUrl} alt="conductor studio logo" className="h-8 rounded" />
+        <p>conductor studio</p>
       </div>
       <GenericModal ref={showSettingsRef} className="max-w-[50vw]">
         <h2 className="my-2 text-lg">Restore Stock Settings</h2>
         <div>
           <p>
-            Settings reset will remove any customizations previously made in ZMK
-            Studio and restore the stock keymap
+            Settings reset will remove any customizations previously made in
+            conductor studio and restore the stock keymap
           </p>
           <p>Continue?</p>
           <div className="flex justify-end my-2 gap-3">
